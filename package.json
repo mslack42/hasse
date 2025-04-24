@@ -1,0 +1,24 @@
+{
+  "name": "hasse",
+  "version": "0.1.0",
+  "description": "Library for data structures designed for partial orderings, organised like a Hasse diagram",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "test": "jest",
+    "build": "tsup"
+  },
+  "files": [
+    "/dist"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.3.2",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.3"
+  }
+}
