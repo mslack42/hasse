@@ -2,6 +2,7 @@ import { HasseoidNode } from "./HasseoidNode";
 import { Relation } from "../Common/Relation";
 import { PartialOrderingFn } from "../Common/OrderingFns";
 import { UUID } from "crypto";
+import { HasseoidNodeItem } from "./HasseoidNodeItem";
 
 export class Hasseoid<PosetElt> {
     constructor(partialOrderingFn: PartialOrderingFn<PosetElt>, identityFn?: (a: PosetElt, b: PosetElt) => boolean) {
@@ -24,10 +25,11 @@ export class Hasseoid<PosetElt> {
     public add(elt: PosetElt) {
         var succs: Set<HasseoidNode<PosetElt>> = new Set();
         var priors: Set<HasseoidNode<PosetElt>> = new Set();
+        var wrappedElt = new HasseoidNodeItem(elt);
         const trawlUpwards = ([lower, upper]: [HasseoidNode<PosetElt>, HasseoidNode<PosetElt>]): void => {
-            const comp = this.partialOrdering(elt, upper.values[0]);
+            const comp = this.partialOrdering(wrappedElt.value, upper.values[0].value);
             if (comp == Relation.EQ) {
-                upper.values.push(elt);
+                upper.values.push(wrappedElt);
                 return;
             }
             if (comp == Relation.LT) {
@@ -46,9 +48,9 @@ export class Hasseoid<PosetElt> {
             }
         };
         const trawlDownwards = ([lower, upper]: [HasseoidNode<PosetElt>, HasseoidNode<PosetElt>]): void => {
-            const comp = this.partialOrdering(elt, lower.values[0]);
+            const comp = this.partialOrdering(wrappedElt.value, lower.values[0].value);
             if (comp == Relation.EQ) {
-                lower.values.push(elt);
+                lower.values.push(wrappedElt);
                 return;
             }
             if (comp == Relation.GT) {
@@ -76,12 +78,12 @@ export class Hasseoid<PosetElt> {
                 trawlDownwards([e, null]);
             }
         }
-        if (this.elements.filter(e => e.values.filter(v => this.identity(v, elt)).length > 0).length > 0) {
+        if (this.elements.filter(e => e.values.filter(v => v.itemId == wrappedElt.itemId).length > 0).length > 0) {
             return;
         }
         // At this point hopefully succs and priors are populated fully and minimally
         const newNode = new HasseoidNode<PosetElt>();
-        newNode.values = [elt];
+        newNode.values = [wrappedElt];
         newNode.predecessors = [...priors];
         newNode.successors = [...succs];
 
@@ -101,30 +103,52 @@ export class Hasseoid<PosetElt> {
         }
     }
 
-    public remove(elt: PosetElt) {
-        const groupMatches = this.elements.filter(e => e.values.filter(v => this.identity(v, elt)).length > 0);
+    private removeNode(match: HasseoidNode<PosetElt>) {
+        for (const p of match.predecessors) {
+            p.successors = p.successors.filter(x => x != match);
+        }
+        for (const s of match.successors) {
+            s.predecessors = s.predecessors.filter(x => x != match);
+        }
+        for (const p of match.predecessors) {
+            for (const s of match.successors) {
+                if (p.successors.filter(x => s.predecessors.includes(x)).length == 0) {
+                    p.successors.push(s);
+                    s.predecessors.push(p);
+                }
+            }
+        }
+        this.elements = this.elements.filter(e => e != match);
+    }
+
+    public removeByNodeId(nodeId: UUID, groupId?: UUID) {
+        let groupMatches: HasseoidNode<PosetElt>[];
+        if (groupId) {
+            groupMatches = this.elements.filter(e => e.nodeId == groupId)
+        } else {
+            groupMatches = this.elements.filter(e => e.values.filter(v => v.itemId == nodeId).length > 0)
+        }
         if (groupMatches.length > 0) {
             const match = groupMatches[0];
-            match.values = match.values.filter(v => !this.identity(v, elt));
+            match.values = match.values.filter(v => v.itemId == nodeId);
             if (match.values.length > 0) {
                 return;
             }
 
-            for (const p of match.predecessors) {
-                p.successors = p.successors.filter(x => x != match);
+            this.removeNode(match)
+        }
+    }
+
+    public remove(elt: PosetElt) {
+        const groupMatches = this.elements.filter(e => e.values.filter(v => this.identity(v.value, elt)).length > 0);
+        if (groupMatches.length > 0) {
+            const match = groupMatches[0];
+            match.values = match.values.filter(v => !this.identity(v.value, elt));
+            if (match.values.length > 0) {
+                return;
             }
-            for (const s of match.successors) {
-                s.predecessors = s.predecessors.filter(x => x != match);
-            }
-            for (const p of match.predecessors) {
-                for (const s of match.successors) {
-                    if (p.successors.filter(x => s.predecessors.includes(x)).length == 0) {
-                        p.successors.push(s);
-                        s.predecessors.push(p);
-                    }
-                }
-            }
-            this.elements = this.elements.filter(e => e != match);
+
+            this.removeNode(match)
         }
     }
 
@@ -134,8 +158,14 @@ export class Hasseoid<PosetElt> {
         }
     }
 
+    public removeManyByNodeId(nodeIds: UUID[]) {
+        for (const nodeId of nodeIds) {
+            this.removeByNodeId(nodeId)
+        }
+    }
+
     public getNodeFromElt(elt: PosetElt) {
-        const matches = this.elements.filter(e => e.values.filter(v => this.identity(v, elt)).length > 0)
+        const matches = this.elements.filter(e => e.values.filter(v => this.identity(v.value, elt)).length > 0)
         if (matches.length > 0) {
             return matches[0]
         }

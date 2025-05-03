@@ -96,26 +96,43 @@ export class Hasse<PosetElt> {
         }
     }
 
+    private removeNode(node: HasseNode<PosetElt>) {
+        for (const p of node.predecessors) {
+            p.successors = p.successors.filter(x => x != node)
+        }
+        for (const s of node.successors) {
+            s.predecessors = s.predecessors.filter(x => x != node)
+        }
+        for (const p of node.predecessors) {
+            for (const s of node.successors) {
+                if (p.successors.filter(x => s.predecessors.includes(x)).length == 0) {
+                    p.successors.push(s)
+                    s.predecessors.push(p)
+                }
+            }
+        }
+        this.elements = this.elements.filter(e => e != node)
+    }
+
+    public removeByNodeId(nodeId: UUID) {
+        const matches = this.elements.filter(e => e.nodeId == nodeId)
+        if (matches.length > 0) {
+            const match = matches[0]
+            this.removeNode(match)
+        }
+    }
+
     public remove(elt: PosetElt) {
         const matches = this.elements.filter(e => this.identity(e.value, elt))
         if (matches.length > 0) {
             const match = matches[0]
+            this.removeNode(match)
+        }
+    }
 
-            for (const p of match.predecessors) {
-                p.successors = p.successors.filter(x => x != match)
-            }
-            for (const s of match.successors) {
-                s.predecessors = s.predecessors.filter(x => x != match)
-            }
-            for (const p of match.predecessors) {
-                for (const s of match.successors) {
-                    if (p.successors.filter(x => s.predecessors.includes(x)).length == 0) {
-                        p.successors.push(s)
-                        s.predecessors.push(p)
-                    }
-                }
-            }
-            this.elements = this.elements.filter(e => e != match)
+    public removeManyByNodeId(nodeIds: UUID[]) {
+        for (const nodeId of nodeIds) {
+            this.removeByNodeId(nodeId)
         }
     }
 
@@ -125,8 +142,8 @@ export class Hasse<PosetElt> {
         }
     }
 
-    public getNodeFromElt(elt:PosetElt) {
-        const matches= this.elements.filter(e => this.identity(e.value,elt))
+    public getNodeFromElt(elt: PosetElt) {
+        const matches = this.elements.filter(e => this.identity(e.value, elt))
         if (matches.length > 0) {
             return matches[0]
         }
@@ -134,7 +151,7 @@ export class Hasse<PosetElt> {
     }
 
     public getNodeFromNodeId(id: UUID) {
-        const matches= this.elements.filter(e => e.nodeId == id)
+        const matches = this.elements.filter(e => e.nodeId == id)
         if (matches.length > 0) {
             return matches[0]
         }
