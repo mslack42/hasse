@@ -1,6 +1,6 @@
 {
   "name": "hasse",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Library for data structures designed for partial orderings, organised like a Hasse diagram",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
